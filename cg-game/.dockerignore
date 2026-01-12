@@ -12,3 +12,5 @@ dist
 .env.*
 README.md
 docs
+!docs/
+!docs/gamer-notes.md
