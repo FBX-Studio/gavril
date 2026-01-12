@@ -1,0 +1,40 @@
+# Workspace root ignores (so you can git-init from c:\work\gavr_eks)
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Node / Vite
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/.vite/
+**/*.local
+
+# Env files
+**/.env
+**/.env.*
+
+# Logs
+**/logs/
+**/*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local study materials (usually not for git)
+vopros.docx
+otvet1.pdf
+otvet2.pdf

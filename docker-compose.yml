@@ -1,0 +1,7 @@
+services:
+  cg-game:
+    build:
+      context: ./cg-game
+    ports:
+      - "8080:80"
+    restart: unless-stopped
