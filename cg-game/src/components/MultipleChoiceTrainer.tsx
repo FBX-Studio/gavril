@@ -17,13 +17,43 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
-function snippet(s: string) {
-  const firstLine = s
+function normalize(s: string) {
+  return s
+    .toLowerCase()
+    .replace(/[«»"'`.,:;!?()\[\]{}]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function choiceSnippet(answer: string, title: string) {
+  const lines = answer
     .split('\n')
     .map((x) => x.trim())
-    .find(Boolean)
-  const base = firstLine && firstLine.length >= 16 ? firstLine : s
-  return base.replace(/\s+/g, ' ').trim().slice(0, 140)
+    .filter(Boolean)
+
+  const t = normalize(title)
+  const isTitleLike = (line: string) => {
+    const n = normalize(line)
+    if (!n) return true
+    if (t && (n === t || n.startsWith(t) || t.startsWith(n))) return true
+    // Also skip generic headings that are very often just the ticket name.
+    if (n.length <= 10) return true
+    return false
+  }
+
+  const bulletLines = lines
+    .filter((l) => /^[-•*]\s+/.test(l))
+    .map((l) => l.replace(/^[-•*]\s+/, '').trim())
+    .filter((l) => !isTitleLike(l))
+
+  const picked =
+    bulletLines.length >= 2
+      ? bulletLines.slice(0, 2).join(' · ')
+      : lines.find((l) => !isTitleLike(l) && l.length >= 16) ??
+        lines.find((l) => !isTitleLike(l)) ??
+        answer
+
+  return picked.replace(/\s+/g, ' ').trim().slice(0, 180)
 }
 
 export function MultipleChoiceTrainer({
@@ -57,7 +87,10 @@ export function MultipleChoiceTrainer({
     const distractors = remaining > 0 ? distractorsFromLevel.concat(shuffle(globalPool).slice(0, remaining)) : distractorsFromLevel
 
     const all = shuffle([currentId, ...distractors])
-    return all.map((id) => ({ id, label: snippet(getQuestion(id).answer) }))
+    return all.map((id) => {
+      const qq = getQuestion(id)
+      return { id, label: choiceSnippet(qq.answer, qq.title) }
+    })
   }, [allIds, currentId, levelIds])
 
   const finished = idx >= order.length
