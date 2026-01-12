@@ -13,6 +13,15 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+function snippet(s: string) {
+  const firstLine = s
+    .split('\n')
+    .map((x) => x.trim())
+    .find(Boolean)
+  const base = firstLine && firstLine.length >= 16 ? firstLine : s
+  return base.replace(/\s+/g, ' ').trim().slice(0, 140)
+}
+
 export function SituationsTrainer({
   questionIds,
   onXp,
@@ -20,12 +29,14 @@ export function SituationsTrainer({
   questionIds: number[]
   onXp: (delta: number) => void
 }) {
-  const allIds = useMemo(() => {
-    const unique = Array.from(new Set(questionIds))
-    return unique.length >= 4 ? unique : QUESTIONS.map((q) => q.id)
+  const levelIds = useMemo(() => {
+    const unique = Array.from(new Set(questionIds)).filter((id) => Number.isFinite(id))
+    return unique.length > 0 ? unique : QUESTIONS.map((q) => q.id)
   }, [questionIds])
 
-  const [order, setOrder] = useState(() => shuffle(allIds).slice(0, Math.min(10, allIds.length)))
+  const allIds = useMemo(() => QUESTIONS.map((q) => q.id), [])
+
+  const [order, setOrder] = useState(() => shuffle(levelIds).slice(0, Math.min(10, levelIds.length)))
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<number | null>(null)
   const [correct, setCorrect] = useState(0)
@@ -34,13 +45,18 @@ export function SituationsTrainer({
   const currentId = order[idx] ?? order[0] ?? 1
   const q = getQuestion(currentId)
 
-  const prompt = SITUATIONS[currentId] ?? `Ситуация по билету: «${q.title}». Какой билет описывает решение/идею?`
+  const prompt = SITUATIONS[currentId] ?? `Ситуация по теме: «${q.title}». Какой ответ лучше подходит?`
 
   const options = useMemo(() => {
-    const pool = allIds.filter((x) => x !== currentId)
-    const distractors = shuffle(pool).slice(0, 3)
-    return shuffle([currentId, ...distractors]).map((id) => ({ id, title: getQuestion(id).title }))
-  }, [allIds, currentId])
+    const levelPool = levelIds.filter((x) => x !== currentId)
+    const globalPool = allIds.filter((x) => x !== currentId && !levelPool.includes(x))
+
+    const distractorsFromLevel = shuffle(levelPool).slice(0, 3)
+    const remaining = 3 - distractorsFromLevel.length
+    const distractors = remaining > 0 ? distractorsFromLevel.concat(shuffle(globalPool).slice(0, remaining)) : distractorsFromLevel
+
+    return shuffle([currentId, ...distractors]).map((id) => ({ id, label: snippet(getQuestion(id).answer) }))
+  }, [allIds, currentId, levelIds])
 
   const pick = (id: number) => {
     if (picked !== null) return
@@ -60,7 +76,7 @@ export function SituationsTrainer({
   }
 
   const restart = () => {
-    setOrder(shuffle(allIds).slice(0, Math.min(10, allIds.length)))
+    setOrder(shuffle(levelIds).slice(0, Math.min(10, levelIds.length)))
     setIdx(0)
     setPicked(null)
     setCorrect(0)
@@ -88,7 +104,7 @@ export function SituationsTrainer({
         Ситуация {idx + 1} / {order.length}
       </div>
       <div className="mt-2 text-sm font-semibold text-white">{prompt}</div>
-      <div className="mt-2 text-xs text-white/60">Выбери билет (вопрос), который лучше всего подходит.</div>
+      <div className="mt-2 text-xs text-white/60">Выбери лучший вариант ответа (по смыслу/ключевой фразе).</div>
 
       <div className="mt-3 space-y-2">
         {options.map((o) => {
@@ -105,7 +121,7 @@ export function SituationsTrainer({
 
           return (
             <button key={o.id} className={cls} onClick={() => pick(o.id)}>
-              {o.id}. {o.title}
+              {o.label}
             </button>
           )
         })}
@@ -113,7 +129,7 @@ export function SituationsTrainer({
 
       {picked !== null && (
         <div className="mt-3 space-y-3">
-          <div className="text-xs text-white/60">Разбор билета:</div>
+          <div className="text-xs text-white/60">Разбор:</div>
           <div className="text-sm font-semibold text-white">{q.id}. {q.title}</div>
           <div className="whitespace-pre-wrap text-sm leading-relaxed text-white/80">{q.answer}</div>
           <div>

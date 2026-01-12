@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { getQuestion } from '../content/questions'
+import { getQuestion, QUESTIONS } from '../content/questions'
 import { Button } from './Button'
 import { Card } from './Card'
 
@@ -33,12 +33,14 @@ export function MultipleChoiceTrainer({
   questionIds: number[]
   onXp: (delta: number) => void
 }) {
-  const ids = useMemo(() => {
-    const unique = Array.from(new Set(questionIds))
-    return unique.length >= 4 ? unique : Array.from({ length: 57 }, (_, i) => i + 1)
+  const levelIds = useMemo(() => {
+    const unique = Array.from(new Set(questionIds)).filter((id) => Number.isFinite(id))
+    return unique.length > 0 ? unique : QUESTIONS.map((q) => q.id)
   }, [questionIds])
 
-  const [order, setOrder] = useState(() => shuffle(ids).slice(0, Math.min(10, ids.length)))
+  const allIds = useMemo(() => QUESTIONS.map((q) => q.id), [])
+
+  const [order, setOrder] = useState(() => shuffle(levelIds).slice(0, Math.min(10, levelIds.length)))
   const [idx, setIdx] = useState(0)
   const [picked, setPicked] = useState<number | null>(null)
   const [correct, setCorrect] = useState(0)
@@ -47,11 +49,16 @@ export function MultipleChoiceTrainer({
   const q = getQuestion(currentId)
 
   const choices = useMemo<Choice[]>(() => {
-    const pool = ids.filter((x) => x !== currentId)
-    const distractors = shuffle(pool).slice(0, 3)
+    const levelPool = levelIds.filter((x) => x !== currentId)
+    const globalPool = allIds.filter((x) => x !== currentId && !levelPool.includes(x))
+
+    const distractorsFromLevel = shuffle(levelPool).slice(0, 3)
+    const remaining = 3 - distractorsFromLevel.length
+    const distractors = remaining > 0 ? distractorsFromLevel.concat(shuffle(globalPool).slice(0, remaining)) : distractorsFromLevel
+
     const all = shuffle([currentId, ...distractors])
     return all.map((id) => ({ id, label: snippet(getQuestion(id).answer) }))
-  }, [currentId, ids])
+  }, [allIds, currentId, levelIds])
 
   const finished = idx >= order.length
 
@@ -73,7 +80,7 @@ export function MultipleChoiceTrainer({
   }
 
   const restart = () => {
-    setOrder(shuffle(ids).slice(0, Math.min(10, ids.length)))
+    setOrder(shuffle(levelIds).slice(0, Math.min(10, levelIds.length)))
     setIdx(0)
     setPicked(null)
     setCorrect(0)
